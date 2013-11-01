@@ -11,7 +11,13 @@ To Install
 * Download [Graphviz](http://www.graphviz.org/Download..php)
 	* Windows users: do not use the MSI. Instead download the zip-file and extract it next to `cyoa_compiler.py`.
 	* Mac users: just install the package and it should just work.
+
+To Use
+------
+
+* Download the input spreadsheet in CSV format (i.e. from Google Docs).
 * Either:
 	* Run (often double-click) `cyoa_compiler.py`. A GUI will pop up.
 	* (might or might not work for you) Drag the CSV input file onto `cyoa_compiler.py`. A GUI will pop up and the input file's location will be pre-loaded.
+* It is reccommended to leave the CSV file in the default download location and let the compiler remove it upon successful compilation. This way, you will remember to re-download the CSV in order to compile with the latest version of the spreadsheet data; the filename will be constant, so just hit "Compile" after re-downloading and it should "Just Work."
 
