@@ -24,6 +24,8 @@ def slugify(name,dedup=False):
   slugify.slugs[slug] = name
   slugify.names[name] = slug
   return slug
+slugify.slugs = {}
+slugify.names = {}
 
 def key_updater(row):
   if row[0]:
@@ -61,7 +63,6 @@ hell = Exception()
 
 def write_html(nodes, root, slugs, directory):
   rootify = lambda name: name if name != root else 'index'
-  print(root)
   for name, node in nodes.items():
     filename = os.path.join(directory,rootify(name)+'.html')
     b = xml.etree.ElementTree.TreeBuilder()
@@ -79,9 +80,9 @@ def write_html(nodes, root, slugs, directory):
     b.start('p',{'class':'panel-body'}); b.data(node[0]); b.end('p')
     b.end('div')
     if node[1].items():
-      b.start('section',{'class':'btn-group-vertical'})
+      b.start('section',{'class':'list-group'})
       for slug, description in node[1].items():
-        b.start('a',{'class':'btn btn-default','role':'button','href':slug+'.html'})
+        b.start('a',{'class':'list-group-item','href':slug+'.html'})
         b.data(description)
         b.end('a')
       b.end('section')
@@ -93,15 +94,14 @@ def write_html(nodes, root, slugs, directory):
     b.end('a')
     b.end('p')
     b.start('p'); b.start('small')
-    b.data('Design and system © 2013 Milo Mirate')
+    b.data('System is © 2013 Milo Mirate.')
     b.start('br'); b.end('br')
-    b.data('Content © 2013 Milo Mirate, Joy Zhang and Kevin Christopher')
+    b.data('Content is © 2013 Milo Mirate, Joy Zhang and Kevin Christopher.')
     b.end('small'); b.end('p')
     b.end('footer')
     b.end('div')
     b.end('body')
     b.end('html')
-    print(filename)
     open(filename,'w').write('<!DOCTYPE html>\n'+xml.etree.ElementTree.tostring(b.close(),encoding='unicode'))
 
 def write_graphviz(nodes, slugs, directory):
@@ -184,14 +184,19 @@ def gui_compile(filename,directory,status,**kwargs):
 
 def main():
 
+  if len(sys.argv) == 3:
+    compile(*sys.argv[1:])
+    sys.exit(0)
+
   root = Tk()
-  root.title("CYOA Compiler, Version 1")
+  root.title("Choose-Your-Own-Adventure Compiler, Version 1")
   root.columnconfigure(0, weight=1)
   root.rowconfigure(0, weight=1)
   filename = StringVar()
   directory = StringVar()
   status = StringVar()
   remove_on_success = IntVar()
+  remove_on_success.set(1)
 
   mainframe = ttk.Frame(root, padding="3 3 12 12")
   mainframe.grid(column=0, row=0, sticky=(N, W, E, S))
