@@ -95,7 +95,7 @@ def write_html(nodes, root, slugs, directory):
     b.start('hr'); b.end('hr')
     b.start('footer',{'class':'well'})
     b.start('p',{'class':'pull-right'})
-    b.start('a',{'href':'output.gv.png'})
+    b.start('a',{'href':'output.gv.cairo.svg'})
     b.data('Visual overview')
     b.end('a')
     b.end('p')
@@ -114,24 +114,48 @@ def write_graphviz(nodes, slugs, directory):
   gv_slug = lambda slug: re.sub(r'[-]+','_',slug)
   gv_label_escape = lambda text: re.sub('\n',r'\n',re.sub(r'[{}|<>]',lambda m:'\\'+m.group(0),text))
   output_graphviz = [['digraph','house','{']]
-  output_graphviz.append(['node','[shape=record];'])
-  for name, node in nodes.items():
-    output_graphviz.append([gv_slug(name),'[label="{{{}}}"];'.format(re.sub(r'"','&quot;',
-          ''+slugs[name]+' | '+gv_label_escape(textwrap.fill(node[0],50))+'| {'+' | '.join(
-            '<c{}> {}'.format(i,textwrap.fill(gv_label_escape(v),20)) for i, v in enumerate(node[1].values())
-          )+'}'
-        ))
-      ])
-  for name, node in nodes.items():
-    for i, k in enumerate(node[1].keys()):
-      output_graphviz.append(['{}:c{}'.format(gv_slug(name),i),'->','{}'.format(gv_slug(k)),';'])
+  def do_graphviz_with_records():
+    output_graphviz.append(['node','[shape=record];'])
+    for name, node in nodes.items():
+      output_graphviz.append([gv_slug(name),'[label="{{{}}}"];'.format(re.sub(r'"','&quot;',
+            ''+slugs[name]+' | '+gv_label_escape(textwrap.fill(node[0],50))+'| {'+' | '.join(
+              '<c{}> {}'.format(i,gv_label_escape(textwrap.fill(v,20))) for i, v in enumerate(node[1].values())
+            )+'}'
+          ))
+        ])
+    for name, node in nodes.items():
+      for i, k in enumerate(node[1].keys()):
+        output_graphviz.append(['{}:c{}'.format(gv_slug(name),i),'->','{}:n'.format(gv_slug(k)),';'])
+  def do_graphviz_with_labels():
+    output_graphviz.append(['node','[shape=box];'])
+    for name, node in nodes.items():
+      output_graphviz.append([gv_slug(name),'[label="{}"];'.format(re.sub(r'"','&quot;',slugs[name]+r'\n'+gv_label_escape(textwrap.fill(node[0],50))))])
+    for name, node in nodes.items():
+      for destination, label in node[1].items():
+        output_graphviz.append([gv_slug(name),'->',gv_slug(destination),'[taillabel="{}"]'.format(re.sub(r'"','&quot;',gv_label_escape(textwrap.fill(label,20))))])
+  def do_graphviz_with_nodes():
+    output_graphviz.append(['splines=true;'])
+    output_graphviz.append(['node','[shape=none];'])
+    for name, node in nodes.items():
+      output_graphviz.append(['subgraph','cluster_'+gv_slug(name),'{'])
+      output_graphviz.append([gv_slug(name),'[label="{}"];'.format(re.sub(r'"','&quot;',slugs[name]+r'\n'+gv_label_escape(textwrap.fill(node[0],50))))])
+      for destination, label in node[1].items():
+        intermediary_node_name = '{}_to_{}'.format(*map(gv_slug,[name,destination]))
+        output_graphviz.append([intermediary_node_name,'[label="{}",shape=oval];'.format(re.sub(r'"','&quot;',gv_label_escape(textwrap.fill(label,20))))])
+      output_graphviz.append(['}'])
+    for name, node in nodes.items():
+      for destination, label in node[1].items():
+        intermediary_node_name = '{}_to_{}'.format(*map(gv_slug,[name,destination]))
+        output_graphviz.append([gv_slug(name),'->',intermediary_node_name])
+        output_graphviz.append([intermediary_node_name,'->',gv_slug(destination),'[minlen=3];'])
+  do_graphviz_with_nodes()
   output_graphviz.append(['}'])
   filename = os.path.join(directory,'output.gv')
   open(filename,'w').write('\n'.join(' '.join(row) for row in output_graphviz))
   try:
-    subprocess.check_call(['dot','-Tpng','-O',filename])
+    subprocess.check_call(['dot','-Tsvg:cairo','-O',filename])
   except FileNotFoundError:
-    subprocess.check_call([list(glob.glob('graphviz-*/release/bin/dot.exe'))[0],'-Tpng','-O',filename])
+    subprocess.check_call([list(glob.glob('graphviz-*/release/bin/dot.exe'))[0],'-Tsvg:cairo','-O',filename])
 
 class UserCausedFNFError(Exception):
   pass
