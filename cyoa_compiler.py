@@ -67,8 +67,8 @@ def write_html(nodes, root, slugs, directory):
     filename = os.path.join(directory,rootify(name)+'.html')
     b = xml.etree.ElementTree.TreeBuilder()
     b.start('html'); b.start('head');
-    b.start('link',{'rel':'stylesheet','href':'http'+'://cdn.jsdelivr.net/bootstrap/3.0.1/css/bootstrap.css'}); b.end('link')
-    #b.start('link',{'rel':'stylesheet','href':'http'+'://cdn.jsdelivr.net/bootstrap/3.0.1/css/bootstrap-theme.css'}); b.end('link')
+    b.start('link',{'rel':'stylesheet','href':'http'+'://cdn.jsdelivr.net/bootstrap/3.0.2/css/bootstrap.css'}); b.end('link')
+    #b.start('link',{'rel':'stylesheet','href':'http'+'://cdn.jsdelivr.net/bootstrap/3.0.2/css/bootstrap-theme.css'}); b.end('link')
     b.start('title'); b.data('CYOA'); b.end('title')
     b.end('head')
     b.start('body')
