@@ -2,7 +2,7 @@
 
 from pprint import pformat
 import os, os.path, sys, csv, re, itertools, datetime, subprocess, glob, textwrap
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 import xml.etree.ElementTree
 import urllib.parse, webbrowser
 
@@ -37,22 +37,28 @@ def key_updater(row):
 key_updater.current_key = None
 key_updater.past_keys = []
 
+Page = namedtuple('Page', ['name','description','edges'])
+Edge = namedtuple('Edge', ['parent','destination','description'])
+
 def parse_csv(rows,root):
   nodes = {}
   for k, g in itertools.groupby(rows, key_updater):
     g = list(g)
-    g[0][0] = slugify(g[0][0])
+    #g[0][0] = slugify(g[0][0])
     #for i, edge in enumerate(g[1:]):
     #  if i and len(edge) > 2 and edge[2]:
     #    g[i][2] = slugify(g[i][2])
     assert k not in nodes
-    nodes[k] = (g[0][1],OrderedDict((slugify(row[2]),row[1]) for row in g[1:]))
+    assert k==slugify(g[0][0])
+    nodes[k] = Page(name=k,description=g[0][1],edges=[Edge(parent=k,destination=slugify(row[2] if len(row)>=3 and row[2] else row[1]),description=row[1]) for row in g[1:]])
+    print(pformat(list(map(lambda x: x.description,nodes[k].edges))))
+    #(g[0][1],OrderedDict((slugify(row[2]),row[1]) for row in g[1:]))
   if root is None:
     roots = set(nodes.keys())
     for node in nodes.values():
-      for destination in node[1].keys():
-        assert destination in nodes.keys(), "{} not in {}".format(*map(pformat,[destination,nodes]))
-        roots.remove(destination)
+      for edge in node.edges:
+        assert edge.destination in nodes.keys(), "{} not in {}".format(*map(pformat,[edge.destination,nodes]))
+        roots.remove(edge.destination)
     assert len(roots) == 1
     root = roots.pop()
   else:
@@ -76,23 +82,34 @@ def write_html(nodes, root, slugs, directory):
     b.start('header',{'class':'page-header'})
     b.start('h1'); b.data('CYOA'); b.end('h1')
     b.end('header')
-    b.start('div',{'class':'row'})
+    img_filename = slugify.slugs[name]+'.png'
+    b.start('section',{'class':'row'})
+    try:
+      with open(os.path.join(directory,img_filename),'rb') as f:
+        print(re.sub(r'.','',f.read().decode('cp1252','ignore')))
+    except FileNotFoundError:
+      pass
+    else:
+      b.start('div',{'class':'col-md-6'})
+      b.start('img',{'src':img_filename,'class':'center-block img-responsive'})
+      b.end('img')
+      b.end('div')
     b.start('div',{'class':'col-md-6'})
     b.start('div',{'class':'panel panel-default'})
-    b.start('p',{'class':'panel-body'}); b.data(node[0]); b.end('p')
-    b.end('div')
-    b.end('div')
-    if node[1].items():
-      b.start('div',{'class':'col-md-5 col-md-offset-1'})
+    b.start('p',{'class':'panel-body'}); b.data(node.description); b.end('p')
+    if node.edges:
+      #b.start('div',{'class':'col-md-5 col-md-offset-1'})
       b.start('section',{'class':'list-group'})
-      for slug, description in node[1].items():
-        b.start('a',{'class':'list-group-item','href':slug+'.html'})
-        b.data(description)
+      for edge in node.edges:
+        b.start('a',{'class':'list-group-item','href':rootify(edge.destination)+'.html'})
+        b.data(edge.description)
         b.end('a')
       b.end('section')
-      b.end('div')
+      #b.end('div')
     b.end('div')
-    b.start('hr'); b.end('hr')
+    b.end('div')
+    b.end('section')
+    b.start('hr',{'class':'invisible'}); b.end('hr')
     b.start('footer',{'class':'well'})
     b.start('p',{'class':'pull-right'})
     b.start('a',{'href':'output.gv.cairo.svg'})
@@ -114,40 +131,41 @@ def write_graphviz(nodes, slugs, directory):
   gv_slug = lambda slug: re.sub(r'[-]+','_',slug)
   gv_label_escape = lambda text: re.sub('\n',r'\n',re.sub(r'[{}|<>]',lambda m:'\\'+m.group(0),text))
   output_graphviz = [['digraph','house','{']]
-  def do_graphviz_with_records():
-    output_graphviz.append(['node','[shape=record];'])
-    for name, node in nodes.items():
-      output_graphviz.append([gv_slug(name),'[label="{{{}}}"];'.format(re.sub(r'"','&quot;',
-            ''+slugs[name]+' | '+gv_label_escape(textwrap.fill(node[0],50))+'| {'+' | '.join(
-              '<c{}> {}'.format(i,gv_label_escape(textwrap.fill(v,20))) for i, v in enumerate(node[1].values())
-            )+'}'
-          ))
-        ])
-    for name, node in nodes.items():
-      for i, k in enumerate(node[1].keys()):
-        output_graphviz.append(['{}:c{}'.format(gv_slug(name),i),'->','{}:n'.format(gv_slug(k)),';'])
-  def do_graphviz_with_labels():
-    output_graphviz.append(['node','[shape=box];'])
-    for name, node in nodes.items():
-      output_graphviz.append([gv_slug(name),'[label="{}"];'.format(re.sub(r'"','&quot;',slugs[name]+r'\n'+gv_label_escape(textwrap.fill(node[0],50))))])
-    for name, node in nodes.items():
-      for destination, label in node[1].items():
-        output_graphviz.append([gv_slug(name),'->',gv_slug(destination),'[taillabel="{}"]'.format(re.sub(r'"','&quot;',gv_label_escape(textwrap.fill(label,20))))])
+  #def do_graphviz_with_records():
+  #  output_graphviz.append(['node','[shape=record];'])
+  #  for name, node in nodes.items():
+  #    output_graphviz.append([gv_slug(name),'[label="{{{}}}"];'.format(re.sub(r'"','&quot;',
+  #          ''+slugs[name]+' | '+gv_label_escape(textwrap.fill(node[0],50))+'| {'+' | '.join(
+  #            '<c{}> {}'.format(i,gv_label_escape(textwrap.fill(v,20))) for i, v in enumerate(node[1].values())
+  #          )+'}'
+  #        ))
+  #      ])
+  #  for name, node in nodes.items():
+  #    for i, k in enumerate(node[1].keys()):
+  #      output_graphviz.append(['{}:c{}'.format(gv_slug(name),i),'->','{}:n'.format(gv_slug(k)),';'])
+  #def do_graphviz_with_labels():
+  #  output_graphviz.append(['node','[shape=box];'])
+  #  for name, node in nodes.items():
+  #    output_graphviz.append([gv_slug(name),'[label="{}"];'.format(re.sub(r'"','&quot;',slugs[name]+r'\n'+gv_label_escape(textwrap.fill(node[0],50))))])
+  #  for name, node in nodes.items():
+  #    for destination, label in node[1].items():
+  #      output_graphviz.append([gv_slug(name),'->',gv_slug(destination),'[taillabel="{}"]'.format(re.sub(r'"','&quot;',gv_label_escape(textwrap.fill(label,20))))])
   def do_graphviz_with_nodes():
     output_graphviz.append(['splines=true;'])
     output_graphviz.append(['node','[shape=none];'])
     for name, node in nodes.items():
       output_graphviz.append(['subgraph','cluster_'+gv_slug(name),'{'])
-      output_graphviz.append([gv_slug(name),'[label="{}"];'.format(re.sub(r'"','&quot;',slugs[name]+r'\n'+gv_label_escape(textwrap.fill(node[0],50))))])
-      for destination, label in node[1].items():
-        intermediary_node_name = '{}_to_{}'.format(*map(gv_slug,[name,destination]))
-        output_graphviz.append([intermediary_node_name,'[label="{}",shape=oval];'.format(re.sub(r'"','&quot;',gv_label_escape(textwrap.fill(label,20))))])
+      output_graphviz.append([gv_slug(name),'[label="{}"];'.format(re.sub(r'"','&quot;',slugs[name]+r'\n'+gv_label_escape(textwrap.fill(node.description,50))))])
+      for edge in node.edges:
+        assert edge.parent == name
+        intermediary_node_name = '{}_to_{}'.format(*map(gv_slug,[name,edge.destination]))
+        output_graphviz.append([intermediary_node_name,'[label="{}",shape=oval];'.format(re.sub(r'"','&quot;',gv_label_escape(textwrap.fill(edge.description,20))))])
       output_graphviz.append(['}'])
     for name, node in nodes.items():
-      for destination, label in node[1].items():
-        intermediary_node_name = '{}_to_{}'.format(*map(gv_slug,[name,destination]))
+      for edge in node.edges:
+        intermediary_node_name = '{}_to_{}'.format(*map(gv_slug,[name,edge.destination]))
         output_graphviz.append([gv_slug(name),'->',intermediary_node_name])
-        output_graphviz.append([intermediary_node_name,'->',gv_slug(destination),'[minlen=3];'])
+        output_graphviz.append([intermediary_node_name,'->',gv_slug(edge.destination),'[minlen=3];'])
   do_graphviz_with_nodes()
   output_graphviz.append(['}'])
   filename = os.path.join(directory,'output.gv')
@@ -170,6 +188,7 @@ def compile(filename, output_dir):
     if rows[0][3].lower().startswith('start'): root = rows[0][4]
   except IndexError: pass
   nodes, root = parse_csv(rows[1:],root)
+  print(pformat(nodes))
   write_html(nodes,root,slugify.slugs,output_dir)
   write_graphviz(nodes,slugify.slugs,output_dir)
 
