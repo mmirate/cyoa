@@ -109,7 +109,7 @@ def write_html(nodes, root, slugs, directory):
     b.end('div')
     b.end('div')
     b.end('section')
-    b.start('hr',{'class':'invisible'}); b.end('hr')
+    b.start('hr'); b.end('hr')
     b.start('footer',{'class':'well'})
     b.start('p',{'class':'pull-right'})
     b.start('a',{'href':'output.gv.cairo.svg'})
