@@ -180,7 +180,7 @@ class UserCausedFNFError(Exception):
 
 def compile(filename, output_dir):
   try:
-    rows = list(filter(bool,csv.reader(sys.stdin if not filename else open(filename ,newline=''))))
+    rows = list(filter(lambda r: r and any(r),csv.reader(sys.stdin if not filename else open(filename ,newline=''))))
   except FileNotFoundError as e:
     raise UserError(e)
   root = None
