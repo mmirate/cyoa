@@ -40,19 +40,35 @@ key_updater.past_keys = []
 Page = namedtuple('Page', ['name','description','edges'])
 Edge = namedtuple('Edge', ['parent','destination','description'])
 
+class DoneWithThisGroup(Exception): pass
+
 def parse_csv(rows,root):
   nodes = {}
-  for k, g in itertools.groupby(rows, key_updater):
-    g = list(g)
-    #g[0][0] = slugify(g[0][0])
-    #for i, edge in enumerate(g[1:]):
-    #  if i and len(edge) > 2 and edge[2]:
-    #    g[i][2] = slugify(g[i][2])
-    assert k not in nodes
-    assert k==slugify(g[0][0])
-    nodes[k] = Page(name=k,description=g[0][1],edges=[Edge(parent=k,destination=slugify(row[2] if len(row)>=3 and row[2] else row[1]),description=row[1]) for row in g[1:]])
-    print(pformat(list(map(lambda x: x.description,nodes[k].edges))))
-    #(g[0][1],OrderedDict((slugify(row[2]),row[1]) for row in g[1:]))
+  for kay, gee in itertools.groupby(rows, key_updater):
+    try:
+      def process_group(k,g):
+        g = list(g)
+        #g[0][0] = slugify(g[0][0])
+        #for i, edge in enumerate(g[1:]):
+        #  if i and len(edge) > 2 and edge[2]:
+        #    g[i][2] = slugify(g[i][2])
+        #assert k==slugify(g[0][0]), "{}!={}".format(k,slugify(g[0][0]))
+        assert k not in nodes
+        k=slugify(g[0][0])
+        assert k not in nodes
+        nodes[k] = Page(name=k,description=g[0][1],edges=[Edge(parent=k,destination=slugify(row[2] if len(row)>=3 and row[2] else row[1]),description=row[1]) for row in g[1:]])
+        #print(pformat(list(map(lambda x: x.description,nodes[k].edges))))
+        #(g[0][1],OrderedDict((slugify(row[2]),row[1]) for row in g[1:]))
+      gee = list(gee)
+      for row in gee:
+        if "<#>" in "".join(row):
+          for i in [1,2]:
+            expand = lambda s: re.sub(r'<#>',str(i),s)
+            process_group(kay,map(lambda row: list(map(expand,row)),gee))
+          raise DoneWithThisGroup()
+      process_group(kay,gee)
+    except DoneWithThisGroup:
+      pass
   if root is None:
     roots = set(nodes.keys())
     for node in nodes.values():
