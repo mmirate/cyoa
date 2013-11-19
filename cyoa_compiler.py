@@ -194,22 +194,30 @@ def write_graphviz(nodes, slugs, directory):
   except FileNotFoundError:
     subprocess.check_call([list(glob.glob('graphviz-*/release/bin/dot.exe'))[0],'-Tsvg:cairo','-O',filename])
 
-class UserCausedFNFError(Exception):
-  pass
+class UserError(Exception): pass
+class NXError(Exception): pass
 
 def compile(filename, output_dir):
   try:
-    rows = list(filter(lambda r: r and any(r),csv.reader(sys.stdin if not filename else open(filename ,newline=''))))
-  except FileNotFoundError as e:
-    raise UserError(e)
-  root = None
-  try:
-    if rows[0][3].lower().startswith('start'): root = rows[0][4]
-  except IndexError: pass
-  nodes, root = parse_csv(rows[1:],root)
-  print(pformat(nodes))
-  write_html(nodes,root,slugify.slugs,output_dir)
-  write_graphviz(nodes,slugify.slugs,output_dir)
+    try:
+      rows = list(filter(lambda r: r and any(r),csv.reader(sys.stdin if not filename else open(filename ,newline=''))))
+    except FileNotFoundError as e:
+      raise UserError(e)
+    root = None
+    try:
+      if rows[0][3].lower().startswith('start'): root = rows[0][4]
+    except IndexError:
+      pass
+    nodes, root = parse_csv(rows[1:],root)
+    #print(pformat(nodes))
+    write_html(nodes,root,slugify.slugs,output_dir)
+    write_graphviz(nodes,slugify.slugs,output_dir)
+  except NXError as e:
+    pass
+  else:
+    os.replace(filename,filename+'~')
+  finally:
+    pass
 
 from tkinter import *
 from tkinter import ttk, filedialog, messagebox
