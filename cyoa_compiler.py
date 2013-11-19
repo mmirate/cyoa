@@ -81,8 +81,6 @@ def parse_csv(rows,root):
     root = slugify.names[root]
   return nodes, root
 
-hell = Exception()
-
 def write_html(nodes, root, slugs, directory):
   rootify = lambda name: name if name != root else 'index'
   for name, node in nodes.items():
