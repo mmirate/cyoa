@@ -85,6 +85,7 @@ def parse_csv(rows,root):
   return nodes, root
 
 def write_html(nodes, root, slugs, directory):
+  title = slugs[root] if root else 'CYOA'
   rootify = lambda name: name if name != root else 'index'
   for name, node in nodes.items():
     filename = os.path.join(directory,rootify(name)+'.html')
@@ -92,14 +93,14 @@ def write_html(nodes, root, slugs, directory):
     b.start('html'); b.start('head');
     b.start('link',{'rel':'stylesheet','href':'http'+'://cdn.jsdelivr.net/bootstrap/3.0.2/css/bootstrap.css'}); b.end('link')
     #b.start('link',{'rel':'stylesheet','href':'http'+'://cdn.jsdelivr.net/bootstrap/3.0.2/css/bootstrap-theme.css'}); b.end('link')
-    b.start('title'); b.data('CYOA'); b.end('title')
+    b.start('title'); b.data(title); b.end('title')
     b.end('head')
     b.start('body')
     b.start('div',{'class':'container'})
     b.start('header',{'class':'page-header'})
-    b.start('h1'); b.data('CYOA'); b.end('h1')
+    b.start('h1'); b.data(title); b.end('h1')
     b.end('header')
-    img_filename = slugify.slugs[name]+'.png'
+    img_filename = slugs[name]+'.png'
     b.start('section',{'class':'row'})
     try:
       with open(os.path.join(directory,img_filename),'rb') as f:
