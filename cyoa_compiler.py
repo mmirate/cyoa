@@ -6,6 +6,9 @@ from collections import OrderedDict, namedtuple
 import xml.etree.ElementTree
 import urllib.parse, webbrowser
 
+sys.path.insert(0,os.path.join(sys.path[0],'Python-Markdown'))
+import markdown
+
 """
 
 Input
@@ -109,8 +112,10 @@ def write_html(nodes, root, slugs, directory):
       b.end('img')
       b.end('div')
     b.start('div',{'class':'col-md-6'})
-    b.start('div',{'class':'panel panel-default'})
-    b.start('p',{'class':'panel-body'}); b.data(node.description); b.end('p')
+    b.start('div',{'class':'panel panel-default'}).append(xml.etree.ElementTree.fromstring(
+      '<div class="panel-body">'+markdown.markdown(node.description,output_format="xhtml5")+'</div>'
+    ))
+
     if node.edges:
       #b.start('div',{'class':'col-md-5 col-md-offset-1'})
       b.start('section',{'class':'list-group'})
